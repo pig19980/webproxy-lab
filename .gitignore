@@ -2,6 +2,8 @@
 tiny/tiny
 tiny/cgi-bin/adder
 proxy
+echo/echoclient
+echo/echoserver
 
 # MacOS
 .DS_Store
@@ -61,3 +63,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Setting
+.vscode

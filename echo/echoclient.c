@@ -19,6 +19,11 @@ int main(int argc, char **argv) {
 		Rio_readlineb(&rio, buf, MAXLINE);
 		Fputs(buf, stdout);
 	}
+	// while (Fgets(buf, MAXLINE, stdin) != NULL) {
+	// 	send(clientfd, buf, strlen(buf), 0);
+	// 	recv(clientfd, buf, MAXLINE, 0);
+	// 	Fputs(buf, stdout);
+	// }
 	Close(clientfd);
 	exit(0);
 }

@@ -11,6 +11,10 @@ void echo(int connfd) {
 		printf("server received %d bytes\n", (int)n);
 		Rio_writen(connfd, buf, n);
 	}
+	// while ((n = recv(connfd, buf, MAXLINE, 0)) != 0) {
+	// 	printf("server received %d bytes\n", (int)n);
+	// 	send(connfd, buf, n, 0);
+	// }
 }
 
 int main(int argc, char **argv) {

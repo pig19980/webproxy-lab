@@ -6,8 +6,8 @@
             event.preventDefault();
             var a = document.querySelector('input[name="a"]').value;
             var b = document.querySelector('input[name="b"]').value;
-            var url = '/cgi-bin/adder?' + encodeURIComponent(a) + '&' + encodeURIComponent(b);
-            window.location.href = url;
+            var uri = '/cgi-bin/adder?' + encodeURIComponent(a) + '&' + encodeURIComponent(b);
+            window.location.href = uri;
         }
     </script>
 </head>

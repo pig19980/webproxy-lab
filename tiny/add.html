@@ -1,0 +1,21 @@
+<html>
+<head>
+    <title>Add</title>
+    <script>
+        function submitForm(event) {
+            event.preventDefault();
+            var a = document.querySelector('input[name="a"]').value;
+            var b = document.querySelector('input[name="b"]').value;
+            var url = '/cgi-bin/adder?' + encodeURIComponent(a) + '&' + encodeURIComponent(b);
+            window.location.href = url;
+        }
+    </script>
+</head>
+<body>
+    <form onsubmit="submitForm(event)">
+        a: <input type="text" name="a"><br>
+        b: <input type="text" name="b"><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>

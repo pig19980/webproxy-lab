@@ -130,10 +130,17 @@ void serve_static(int fd, char *filename, int filesize) {
 	printf("%s", buf);
 
 	srcfd = Open(filename, O_RDONLY, 0);
-	srcp = Mmap(NULL, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+	// srcp = Mmap(NULL, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+	// Close(srcfd);
+	// Rio_writen(fd, srcp, filesize);
+	// Munmap(srcp, filesize);
+	rio_t rio;
+	Rio_readinitb(&rio, srcfd);
+	srcp = Malloc(filesize);
+	Rio_readnb(&rio, srcp, filesize);
 	Close(srcfd);
 	Rio_writen(fd, srcp, filesize);
-	Munmap(srcp, filesize);
+	free(srcp);
 }
 
 void get_filetype(char *filename, char *filetype) {

@@ -22,7 +22,7 @@ int main(void) {
 	cont_len += sprintf(content + cont_len, "Welcome to add.com: ");
 	cont_len += sprintf(content + cont_len, "THE Internet addition portal.\r\n<p>");
 	cont_len += sprintf(content + cont_len, "The answer is: %d + %d = %d\r\n<p>", n1, n2, n1 + n2);
-	cont_len += sprintf(content + cont_len, "Thanks for visiting!\r\n<p>");
+	cont_len += sprintf(content + cont_len, "Thanks for visiting!\r\n");
 
 	printf("Connection: close\r\n");
 	printf("Content-length: %d\r\n", cont_len);

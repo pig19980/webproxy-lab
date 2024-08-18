@@ -147,6 +147,8 @@ void get_filetype(char *filename, char *filetype) {
 		strcpy(filetype, "image/gpeg");
 	} else if (strstr(filename, ".mp4")) {
 		strcpy(filetype, "video/mp4");
+	} else if (strstr(filename, ".ico")) {
+		strcpy(filetype, "image/vnd.microsoft.icon");
 	} else {
 		strcpy(filetype, "text/plain");
 	}
@@ -172,7 +174,7 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 	char buf[MAXLINE], body[MAXBUF];
 	int body_len = 0, buf_len;
 	body_len += sprintf(body + body_len, "<html><title>Tiny Error</title>");
-	body_len += sprintf(body + body_len, "<body bgcolor=\"ffff\">\r\n>");
+	body_len += sprintf(body + body_len, "<body bgcolor=\"ffff\">\r\n");
 	body_len += sprintf(body + body_len, "%s: %s\r\n", errnum, shortmsg);
 	body_len += sprintf(body + body_len, "<p>%s: %s\r\n", longmsg, cause);
 	body_len += sprintf(body + body_len, "<hr><em>The Tiny Web server</em>\r\n");

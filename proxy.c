@@ -16,6 +16,11 @@ int parse_uri(char *uri, char *hostname, char *port, char *newuri);
 void skiphandler(int sig) {
 	return;
 }
+void sigchild_handler(int sig) {
+	while (waitpid(-1, 0, WNOHANG) > 0)
+		;
+	return;
+}
 
 int main(int argc, char **argv) {
 	int listenfd, connfd;
@@ -34,17 +39,24 @@ int main(int argc, char **argv) {
 
 	while (1) {
 		clientlen = sizeof(clientaddr);
-		connfd = Accept(listenfd, (SA *)&clientaddr,
-						&clientlen); // line:netp:tiny:accept
+		connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
 		Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
 		printf("Accepted connection from (%s, %s)\n", hostname, port);
-		doit(connfd);  // line:netp:tiny:doit
-		Close(connfd); // line:netp:tiny:close
+		if (Fork() == 0) {
+			Close(listenfd);
+			doit(connfd);
+			Close(connfd);
+			exit(0);
+		}
 	}
 
 	return 0;
 }
 
+/*
+	Get request from client and send to server.
+	Send response from server to client.
+*/
 void doit(int connfd) {
 	int parse_ret, clientfd, sendN, gotN;
 	char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
@@ -57,10 +69,15 @@ void doit(int connfd) {
 	printf("Request headers:\n");
 	printf("%s", buf);
 	sscanf(buf, "%s %s %s", method, uri, version);
-	read_requesthdrs(&connrio); // just read and not use got header part
+
+	// just read and not use got header part
+	read_requesthdrs(&connrio);
+
+	// check method is GET
 	if (!strstr(method, "GET")) {
 		return;
 	}
+
 	parse_ret = parse_uri(uri, hostname, port, newuri);
 	if (!parse_ret) {
 		printf("Request is not formal\n");
@@ -102,6 +119,11 @@ void read_requesthdrs(rio_t *rp) {
 	return;
 }
 
+/*
+	Parse uri http://{hostname}:{port}/{newuri}
+	into hostname, port, newuri.
+	Default port is 80 and default newuri is /
+*/
 int parse_uri(char *uri, char *hostname, char *port, char *newuri) {
 	char *host_ptr, *uri_ptr, *port_ptr;
 	host_ptr = strstr(uri, "http:");

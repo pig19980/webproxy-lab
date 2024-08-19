@@ -17,11 +17,6 @@ void *task_thread(void *vargp);
 void skiphandler(int sig) {
 	return;
 }
-void sigchild_handler(int sig) {
-	while (waitpid(-1, 0, WNOHANG) > 0)
-		;
-	return;
-}
 
 int main(int argc, char **argv) {
 	int listenfd, *connfdp;

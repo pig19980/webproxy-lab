@@ -66,3 +66,5 @@ dkms.conf
 
 # Setting
 .vscode
+.proxy
+.noproxy

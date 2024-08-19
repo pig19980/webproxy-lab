@@ -19,6 +19,11 @@ void clienterror(int fd, char *cause, char *method, char *errnum, char *shortmsg
 void skiphandler(int sig) {
 	return;
 }
+void sigchild_handler(int sig) {
+	while (waitpid(-1, 0, WNOHANG) > 0)
+		;
+	return;
+}
 
 int main(int argc, char **argv) {
 	int listenfd, connfd;
@@ -34,14 +39,20 @@ int main(int argc, char **argv) {
 
 	listenfd = Open_listenfd(argv[1]);
 	Signal(SIGPIPE, skiphandler);
+	Signal(SIGCLD, sigchild_handler);
 	while (1) {
 		clientlen = sizeof(clientaddr);
 		connfd = Accept(listenfd, (SA *)&clientaddr,
 						&clientlen); // line:netp:tiny:accept
 		Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
 		printf("Accepted connection from (%s, %s)\n", hostname, port);
-		doit(connfd);  // line:netp:tiny:doit
-		Close(connfd); // line:netp:tiny:close
+		if (Fork() == 0) {
+			Close(listenfd);
+			doit(connfd);  // line:netp:tiny:doit
+			Close(connfd); // line:netp:tiny:close
+			exit(0);
+		}
+		Close(connfd);
 	}
 }
 
@@ -184,7 +195,6 @@ void serve_dynamic(char *method, int fd, char *filename, char *cgiargs) {
 		Dup2(fd, STDOUT_FILENO);
 		Execve(filename, emptylist, environ);
 	}
-	Wait(NULL);
 }
 
 void clienterror(int fd, char *cause, char *method, char *errnum, char *shortmsg, char *longmsg) {

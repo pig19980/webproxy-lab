@@ -5,7 +5,7 @@
 #include "csapp.h"
 
 int main(void) {
-	char *buf, *p;
+	char *buf, *p, *method;
 	char arg1[MAXLINE], arg2[MAXLINE], content[MAXLINE];
 	int n1 = 0, n2 = 0, cont_len = 0;
 
@@ -18,6 +18,7 @@ int main(void) {
 		n2 = atoi(arg2);
 		// sscanf(buf, "%d&%d", &n1, &n2);
 	}
+	method = getenv("METHOD");
 
 	cont_len += sprintf(content + cont_len, "Welcome to add.com: ");
 	cont_len += sprintf(content + cont_len, "THE Internet addition portal.\r\n<p>");
@@ -27,7 +28,9 @@ int main(void) {
 	printf("Connection: close\r\n");
 	printf("Content-length: %d\r\n", cont_len);
 	printf("Content-type: text/html\r\n\r\n");
-	printf("%s", content);
+	if (strcasecmp(method, "HEAD")) {
+		printf("%s", content);
+	}
 	fflush(stdout);
 
 	exit(0);

@@ -59,7 +59,7 @@ void doit(int connfd) {
 	int parse_ret, clientfd, sendN, gotN;
 	char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
 	char hostname[MAXLINE], port[MAXLINE], newuri[MAXLINE];
-	char sendbuf[2 * MAXLINE], gotbuf[MAXLINE];
+	char sendbuf[3 * MAXLINE], gotbuf[MAXLINE];
 	rio_t connrio, clientrio;
 
 	Rio_readinitb(&connrio, connfd);
@@ -71,17 +71,16 @@ void doit(int connfd) {
 	// just read and not use got header part
 	read_requesthdrs(&connrio);
 
-	// check method is GET
-	if (!strstr(method, "GET")) {
-		return;
-	}
-
 	parse_ret = parse_uri(uri, hostname, port, newuri);
 	if (!parse_ret) {
 		printf("Request is not formal\n");
 		return;
 	}
-	clientfd = Open_clientfd(hostname, port);
+	clientfd = open_clientfd(hostname, port);
+	if (clientfd < 0) {
+		printf("(%s: %s) not available\n", hostname, port);
+		return;
+	}
 	printf("Connected to server (%s, %s)\n", hostname, port);
 
 	// send request to server

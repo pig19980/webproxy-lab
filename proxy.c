@@ -12,6 +12,7 @@ static const char *user_agent_hdr =
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
 int parse_uri(char *uri, char *hostname, char *port, char *newuri);
+void *task_thread(void *vargp);
 
 void skiphandler(int sig) {
 	return;
@@ -23,10 +24,11 @@ void sigchild_handler(int sig) {
 }
 
 int main(int argc, char **argv) {
-	int listenfd, connfd;
+	int listenfd, *connfdp;
 	char hostname[MAXLINE], port[MAXLINE];
 	socklen_t clientlen;
 	struct sockaddr_storage clientaddr;
+	pthread_t tid;
 
 	/* Check command line args */
 	if (argc != 2) {
@@ -39,15 +41,11 @@ int main(int argc, char **argv) {
 
 	while (1) {
 		clientlen = sizeof(clientaddr);
-		connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+		connfdp = Malloc(sizeof(int));
+		*connfdp = Accept(listenfd, (SA *)&clientaddr, &clientlen);
 		Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
 		printf("Accepted connection from (%s, %s)\n", hostname, port);
-		if (Fork() == 0) {
-			Close(listenfd);
-			doit(connfd);
-			Close(connfd);
-			exit(0);
-		}
+		Pthread_create(&tid, NULL, task_thread, connfdp);
 	}
 
 	return 0;
@@ -159,4 +157,13 @@ int parse_uri(char *uri, char *hostname, char *port, char *newuri) {
 	}
 	strcpy(hostname, host_ptr);
 	return 1;
+}
+
+void *task_thread(void *vargp) {
+	int connfd = *((int *)vargp);
+	Pthread_detach(pthread_self());
+	Free(vargp);
+	doit(connfd);
+	Close(connfd);
+	return NULL;
 }

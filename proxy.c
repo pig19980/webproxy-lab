@@ -23,7 +23,7 @@ typedef struct cache_info {
 
 static cache_info cache_infos[CACHE_NUM];
 static sem_t mutexs[CACHE_NUM];
-int cidx;
+int last_cidx;
 
 void skiphandler(int sig) {
 	return;
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
 	Send response from server to client.
 */
 void doit(int connfd) {
-	int parse_ret, clientfd, sendN, gotN;
+	int parse_ret, clientfd, sendN, gotN, cur_cidx, cache_hit;
 	char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
 	char hostname[MAXLINE], port[MAXLINE], newuri[MAXLINE];
 	char sendbuf[3 * MAXLINE], gotbuf[MAXLINE];
@@ -76,15 +76,31 @@ void doit(int connfd) {
 	printf("Request headers:\n");
 	printf("%s", buf);
 
-	int cur_cidx = cidx % 10;
-	++cidx;
-	P(&mutexs[cur_cidx]);
-	strcpy(cache_infos[cur_cidx].request, buf);
-	if (cache_infos[cur_cidx].response_value) {
-		free(cache_infos[cur_cidx].response_value);
+	// set cache index.
+	cache_hit = 0;
+	for (int i = 0; i < CACHE_NUM; ++i) {
+		if (!strcasecmp(buf, cache_infos[i].request)) {
+			cur_cidx = i;
+			cache_hit = 1;
+		}
 	}
-	cache_infos[cur_cidx].response_value = malloc(MAX_OBJECT_SIZE);
-	cache_infos[cur_cidx].length = 0;
+	if (!cache_hit) {
+		cur_cidx = last_cidx % 10;
+		++last_cidx;
+	}
+	printf("cidx %d %d\n", cur_cidx, cache_hit);
+
+	P(&mutexs[cur_cidx]);
+	// write or read on cache index
+	// if it is new align on cache, rewite cache info
+	if (!cache_hit) {
+		strcpy(cache_infos[cur_cidx].request, buf);
+		if (cache_infos[cur_cidx].response_value) {
+			free(cache_infos[cur_cidx].response_value);
+		}
+		cache_infos[cur_cidx].response_value = malloc(MAX_OBJECT_SIZE);
+		cache_infos[cur_cidx].length = 0;
+	}
 	sscanf(buf, "%s %s %s", method, uri, version);
 
 	// just read and not use got header part
@@ -96,20 +112,22 @@ void doit(int connfd) {
 		return;
 	}
 	clientfd = open_clientfd(hostname, port);
+
+	// if cannot connect to server and cache hit,
+	// return value in cache
 	if (clientfd < 0) {
 		printf("(%s: %s) not available\n", hostname, port);
-		for (int i = 0; i < CACHE_NUM; ++i) {
-			if (!strcasecmp(buf, cache_infos[i].request)) {
-				P(&mutexs[i]);
-				Rio_writen(connfd, cache_infos[i].response_value, cache_infos[i].length);
-				V(&mutexs[i]);
-				return;
-			}
+		if (cache_hit) {
+			printf("cache hit\n");
+			fputs(cache_infos[cur_cidx].response_value, stdout);
+			printf("%d\n", cache_infos[cur_cidx].length);
+			Rio_writen(connfd, cache_infos[cur_cidx].response_value, cache_infos[cur_cidx].length);
 		}
+		V(&mutexs[cur_cidx]);
 		return;
 	}
-	printf("Connected to server (%s, %s)\n", hostname, port);
 
+	printf("Connected to server (%s, %s)\n", hostname, port);
 	// send request to server
 	sendN = 0;
 	sendN += sprintf(sendbuf + sendN, "GET %s HTTP/1.0\r\n", newuri);
@@ -127,7 +145,8 @@ void doit(int connfd) {
 		cache_infos[cur_cidx].length += gotN;
 	}
 	V(&mutexs[cur_cidx]);
-	fputs(clientrio.rio_buf, stdout);
+	fputs((char *)cache_infos[cur_cidx].response_value, stdout);
+	printf("%d\n", cache_infos[cur_cidx].length);
 	Close(clientfd);
 }
 

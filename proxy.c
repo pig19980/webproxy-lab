@@ -3,6 +3,7 @@
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
+#define CACHE_NUM 10
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr =
@@ -13,6 +14,16 @@ void doit(int fd);
 void read_requesthdrs(rio_t *rp);
 int parse_uri(char *uri, char *hostname, char *port, char *newuri);
 void *task_thread(void *vargp);
+
+typedef struct cache_info {
+	char request[MAXLINE];
+	int length;
+	void *response_value;
+} cache_info;
+
+static cache_info cache_infos[CACHE_NUM];
+static sem_t mutexs[CACHE_NUM];
+int cidx;
 
 void skiphandler(int sig) {
 	return;
@@ -33,6 +44,9 @@ int main(int argc, char **argv) {
 
 	listenfd = Open_listenfd(argv[1]);
 	Signal(SIGPIPE, skiphandler);
+	for (int i = 0; i < CACHE_NUM; ++i) {
+		Sem_init(&mutexs[i], 0, 1);
+	}
 
 	while (1) {
 		clientlen = sizeof(clientaddr);
@@ -61,6 +75,16 @@ void doit(int connfd) {
 	Rio_readlineb(&connrio, buf, MAXLINE);
 	printf("Request headers:\n");
 	printf("%s", buf);
+
+	int cur_cidx = cidx % 10;
+	++cidx;
+	P(&mutexs[cur_cidx]);
+	strcpy(cache_infos[cur_cidx].request, buf);
+	if (cache_infos[cur_cidx].response_value) {
+		free(cache_infos[cur_cidx].response_value);
+	}
+	cache_infos[cur_cidx].response_value = malloc(MAX_OBJECT_SIZE);
+	cache_infos[cur_cidx].length = 0;
 	sscanf(buf, "%s %s %s", method, uri, version);
 
 	// just read and not use got header part
@@ -74,6 +98,14 @@ void doit(int connfd) {
 	clientfd = open_clientfd(hostname, port);
 	if (clientfd < 0) {
 		printf("(%s: %s) not available\n", hostname, port);
+		for (int i = 0; i < CACHE_NUM; ++i) {
+			if (!strcasecmp(buf, cache_infos[i].request)) {
+				P(&mutexs[i]);
+				Rio_writen(connfd, cache_infos[i].response_value, cache_infos[i].length);
+				V(&mutexs[i]);
+				return;
+			}
+		}
 		return;
 	}
 	printf("Connected to server (%s, %s)\n", hostname, port);
@@ -91,8 +123,11 @@ void doit(int connfd) {
 	Rio_readinitb(&clientrio, clientfd);
 	while ((gotN = rio_readnb(&clientrio, gotbuf, MAXLINE)) > 0) {
 		Rio_writen(connfd, gotbuf, gotN);
+		memcpy(cache_infos[cur_cidx].response_value + cache_infos[cur_cidx].length, gotbuf, gotN);
+		cache_infos[cur_cidx].length += gotN;
 	}
-	printf("Send to client done (%s, %s)\n", hostname, port);
+	V(&mutexs[cur_cidx]);
+	fputs(clientrio.rio_buf, stdout);
 	Close(clientfd);
 }
 
